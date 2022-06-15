@@ -33,15 +33,14 @@ protected:
 	UPROPERTY(VisibleAnywhere, BlueprintReadWrite)
 	bool InvertCamera;
 
-	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, meta = (AllowPrivateAccess = "true"))
+	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite)
 	float CameraYawRotationAmount = 1.0f; //Stored in Degrees
 
-	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, meta = (AllowPrivateAccess = "true"))
+	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite)
 	float CameraPitchRotationAmount = 0.5f; //Stored in Degrees
 
-	const bool UseCameraForward = false;
+	const bool UseCameraForward = true;
 
-	FVector RotateAroundPoint(const float fRotationAmount, const FVector vRotationPoint, const FVector vPointToRotate) const;
 	void RotateCamYaw(const float fInputValue);
 	void RotateCamPitch(const float fInputValue);
 #pragma endregion
