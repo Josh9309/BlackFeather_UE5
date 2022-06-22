@@ -14,7 +14,8 @@ ABFCharacter_PiratePlayer::ABFCharacter_PiratePlayer(const FObjectInitializer& O
 	CameraComponent = CreateDefaultSubobject<UCameraComponent>(FName("PirateCamera"));
 	if (CameraComponent && PirateMesh)
 	{
-		CameraComponent->SetupAttachment(PirateMesh, "Pirate_CameraFocusPoint");
+		const FAttachmentTransformRules cameraAttachRules(EAttachmentRule::KeepRelative, false);
+		CameraComponent->AttachToComponent(PirateMesh, cameraAttachRules);
 	}
 }
 
@@ -34,8 +35,8 @@ void ABFCharacter_PiratePlayer::SetupPlayerInputComponent(UInputComponent* Playe
 	PlayerInputComponent->BindAxis(FName("Forward"), this, &ABFCharacter_PiratePlayer::MoveForward);
 	PlayerInputComponent->BindAxis(FName("Right"), this, &ABFCharacter_PiratePlayer::MoveRight);
 	PlayerInputComponent->BindAxis(FName("Jump"), this, &ABFCharacter_PiratePlayer::MoveJump);
-	PlayerInputComponent->BindAxis(FName("CameraRotatePitch"), this, &ABFCharacter_PiratePlayer::RotateCamPitch);
-	PlayerInputComponent->BindAxis(FName("CameraRotateYaw"), this, &ABFCharacter_PiratePlayer::RotateCamYaw);
+	//PlayerInputComponent->BindAxis(FName("CameraRotatePitch"), this, &ABFCharacter_PiratePlayer::RotateCamPitch);
+	//PlayerInputComponent->BindAxis(FName("CameraRotateYaw"), this, &ABFCharacter_PiratePlayer::RotateCamYaw);
 }
 #pragma endregion
 
