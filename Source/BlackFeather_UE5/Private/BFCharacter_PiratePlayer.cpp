@@ -10,18 +10,13 @@ ABFCharacter_PiratePlayer::ABFCharacter_PiratePlayer(const FObjectInitializer& O
 {
 	PrimaryActorTick.bCanEverTick = true;
 
-	USkeletalMeshComponent* PirateMesh = GetMesh();
-	CameraComponent = CreateDefaultSubobject<UCameraComponent>(FName("PirateCamera"));
-	if (CameraComponent && PirateMesh)
-	{
-		const FAttachmentTransformRules cameraAttachRules(EAttachmentRule::KeepRelative, false);
-		CameraComponent->AttachToComponent(PirateMesh, cameraAttachRules);
-	}
+	InitializeCamera();
 }
 
 void ABFCharacter_PiratePlayer::BeginPlay()
 {
 	Super::BeginPlay();
+	ResetCameraFocus();
 }
 #pragma endregion
 
@@ -35,43 +30,81 @@ void ABFCharacter_PiratePlayer::SetupPlayerInputComponent(UInputComponent* Playe
 	PlayerInputComponent->BindAxis(FName("Forward"), this, &ABFCharacter_PiratePlayer::MoveForward);
 	PlayerInputComponent->BindAxis(FName("Right"), this, &ABFCharacter_PiratePlayer::MoveRight);
 	PlayerInputComponent->BindAxis(FName("Jump"), this, &ABFCharacter_PiratePlayer::MoveJump);
-	//PlayerInputComponent->BindAxis(FName("CameraRotatePitch"), this, &ABFCharacter_PiratePlayer::RotateCamPitch);
-	//PlayerInputComponent->BindAxis(FName("CameraRotateYaw"), this, &ABFCharacter_PiratePlayer::RotateCamYaw);
+	PlayerInputComponent->BindAxis(FName("CameraRotatePitch"), this, &ABFCharacter_PiratePlayer::RotateCamPitch);
+	PlayerInputComponent->BindAxis(FName("CameraRotateYaw"), this, &ABFCharacter_PiratePlayer::RotateCamYaw);
+	PlayerInputComponent->BindAction(FName("ResetCamera"), IE_Pressed, this, &ABFCharacter_PiratePlayer::ResetCameraFocus);
 }
 #pragma endregion
 
 #pragma region Camera Logic
-void ABFCharacter_PiratePlayer::RotateCamYaw(const float fInputValue)
+void ABFCharacter_PiratePlayer::ResetCameraFocus()
+{
+	if (!CameraArm) { return; }
+
+	CameraArm->SetRelativeRotation(FRotator::ZeroRotator);
+	LookAtCameraFocusPoint();
+}
+
+void ABFCharacter_PiratePlayer::LookAtCameraFocusPoint()
 {
 	const USkeletalMeshComponent* pirateMesh = GetMesh();
-	if (!pirateMesh || !CameraComponent || fInputValue == 0.0f) { return; }
+	if (!pirateMesh || !CameraArm) { return; }
 
 	FVector vSocketLocation;
 	FRotator rSocketRotation;
 	pirateMesh->GetSocketWorldLocationAndRotation("Pirate_CameraFocusPoint", vSocketLocation, rSocketRotation);
-	DrawDebugSphere(GetWorld(), vSocketLocation, 100, 20, FColor::Blue);
-
-	//Rotate Camera Location
-	const FRotator rCamYawRotation = FRotator(0.0f, fInputValue * CameraYawRotationAmount, 0.0f);
-	const FVector vSocketToCurrentCamLocation = CameraComponent->GetComponentLocation() - vSocketLocation;
-	const FVector vToNewCamLocation = rCamYawRotation.RotateVector(vSocketToCurrentCamLocation);
-	CameraComponent->SetRelativeLocation(vToNewCamLocation);
-
 
 	//Set Camera to point at Camera Focus point
 	const FVector vCameraToSocket = vSocketLocation - CameraComponent->GetComponentLocation();
 	const FRotator rCameraToSocketRelativeRotation = vCameraToSocket.Rotation() - GetActorRotation();
-	const FRotator rNewCameraFocusRotation = FRotator(CameraComponent->GetRelativeRotation().Pitch, rCameraToSocketRelativeRotation.Yaw, 0.0f);
-	CameraComponent->SetRelativeRotation(rNewCameraFocusRotation);
+	const FRotator rNewCameraFocusRotation = FRotator(rCameraToSocketRelativeRotation.Pitch, rCameraToSocketRelativeRotation.Yaw, 0.0f);
+	CameraComponent->SetWorldRotation(rNewCameraFocusRotation);
+}
+
+void ABFCharacter_PiratePlayer::RotateCamYaw(const float fInputValue)
+{
+	const USkeletalMeshComponent* pirateMesh = GetMesh();
+	if (!pirateMesh || !CameraArm || fInputValue == 0.0f) { return; }
+
+	const float fYawRotateAmount = fInputValue * CameraYawRotationAmount;
+	const FRotator fNewRotation = FRotator(0.0f, fYawRotateAmount, 0.0f);
+	CameraArm->AddRelativeRotation(fNewRotation);
+
+	LookAtCameraFocusPoint();
 }
 
 void ABFCharacter_PiratePlayer::RotateCamPitch(const float fInputValue)
 {
-	if (!CameraComponent || fInputValue == 0.0f) { return; }
+	if (!CameraArm || fInputValue == 0.0f) { return; }
 
 	const float fCamRotateAmount = InvertCamera ? -(fInputValue*CameraPitchRotationAmount) : (fInputValue*CameraPitchRotationAmount);
 	const FRotator rCameraPitchRotation = FRotator(fCamRotateAmount, 0.0f, 0.0f);
-	CameraComponent->AddRelativeRotation(rCameraPitchRotation);
+	CameraArm->AddRelativeRotation(rCameraPitchRotation);
+
+	LookAtCameraFocusPoint();
+}
+
+void ABFCharacter_PiratePlayer::InitializeCamera()
+{
+	USkeletalMeshComponent* pirateMesh = GetMesh();
+	CameraArm = CreateDefaultSubobject<USpringArmComponent>(FName("CameraArm"));
+	CameraComponent = CreateDefaultSubobject<UCameraComponent>(FName("PirateCamera"));
+	if (!CameraArm && !CameraComponent && !pirateMesh) { return; }
+
+	CameraArm->SetupAttachment(RootComponent);
+	CameraComponent->AttachToComponent(CameraArm, FAttachmentTransformRules::KeepRelativeTransform);
+	
+	CameraArm->TargetArmLength = 300.0f;
+	CameraArm->SocketOffset = FVector(0,0, 200.0f);
+
+	FVector vSocketLocation;
+	FRotator rSocketRotation;
+	pirateMesh->GetSocketWorldLocationAndRotation("Pirate_CameraFocusPoint", vSocketLocation, rSocketRotation);
+
+	const FVector vCameraToSocket = vSocketLocation - CameraComponent->GetComponentLocation();
+	const FRotator rCameraToSocketRelativeRotation = vCameraToSocket.Rotation() - GetActorRotation();
+	const FRotator rNewCameraFocusRotation = FRotator(CameraComponent->GetRelativeRotation().Pitch, rCameraToSocketRelativeRotation.Yaw, 0.0f);
+	CameraComponent->SetRelativeRotation(rNewCameraFocusRotation);
 }
 #pragma endregion
 

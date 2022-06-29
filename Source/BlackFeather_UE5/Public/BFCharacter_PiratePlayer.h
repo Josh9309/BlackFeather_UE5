@@ -26,9 +26,19 @@ protected:
 #pragma endregion
 
 #pragma region Camera Logic
+public:
+	UFUNCTION(BlueprintCallable)
+	void ResetCameraFocus();
+
+	UFUNCTION(BlueprintCallable)
+	void LookAtCameraFocusPoint();
+
 protected:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly)
 	class UCameraComponent* CameraComponent;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly)
+	class USpringArmComponent* CameraArm;
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadWrite)
 	bool InvertCamera;
@@ -43,6 +53,10 @@ protected:
 
 	void RotateCamYaw(const float fInputValue);
 	void RotateCamPitch(const float fInputValue);
+
+private:
+	void InitializeCamera();
+
 #pragma endregion
 
 #pragma region Movement Logic
